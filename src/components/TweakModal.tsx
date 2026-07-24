@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { createModel } from '@/lib/ollama';
 import { getSettings } from '@/lib/settings';
+import { PRESETS, Preset } from '@/lib/presets';
 
 interface TweakModalProps {
   modelName: string;
@@ -22,13 +23,11 @@ const InfoTooltip = ({ text }: { text: string }) => (
 );
 
 export default function TweakModal({ modelName, onClose }: TweakModalProps) {
-  // 1. Load default settings from localStorage
   const defaultSettings = getSettings();
 
   const [customName, setCustomName] = useState(`${modelName.split(':')[0]}-custom`);
   const [systemPrompt, setSystemPrompt] = useState('');
   
-  // 2. Initialize state with user's saved defaults
   const [temperature, setTemperature] = useState(defaultSettings.defaultTemperature);
   const [topP, setTopP] = useState(defaultSettings.defaultTopP);
   const [topK, setTopK] = useState(defaultSettings.defaultTopK);
@@ -43,6 +42,21 @@ export default function TweakModal({ modelName, onClose }: TweakModalProps) {
   
   const [activeTab, setActiveTab] = useState<'preview' | 'info'>('preview');
   const [deployStep, setDeployStep] = useState<'idle' | 'analyzing' | 'generating' | 'deploying' | 'done'>('idle');
+
+  // NEW: Function to apply a preset instantly
+  const applyPreset = (preset: Preset) => {
+    setSystemPrompt(preset.systemPrompt);
+    setTemperature(preset.temperature);
+    setTopP(preset.topP);
+    setTopK(preset.topK);
+    setMinP(preset.minP);
+    setRepeatPenalty(preset.repeatPenalty);
+    setNumCtx(preset.numCtx);
+    setNumGpu(preset.numGpu);
+    // Reset advanced penalties to 0 for clean slate on preset change
+    setPresencePenalty(0.0);
+    setFrequencyPenalty(0.0);
+  };
 
   const generateModelfile = () => {
     const baseModel = modelName.trim();
@@ -70,27 +84,25 @@ export default function TweakModal({ modelName, onClose }: TweakModalProps) {
 
   const handleDeploy = async () => {
     setDeployStep('analyzing');
-    await new Promise(r => setTimeout(r, 800)); // Simulate analysis
+    await new Promise(r => setTimeout(r, 800));
     
     setDeployStep('generating');
     const modelfileContent = generateModelfile();
-    await new Promise(r => setTimeout(r, 800)); // Simulate generation
+    await new Promise(r => setTimeout(r, 800));
     
     setDeployStep('deploying');
-    
-    // 3. Get the custom URL from settings and pass it to createModel
     const settings = getSettings();
     const success = await createModel(customName, modelfileContent, settings.ollamaUrl);
     
-    await new Promise(r => setTimeout(r, 600)); // Simulate deployment
+    await new Promise(r => setTimeout(r, 600));
     
     if (success) {
       setDeployStep('done');
       setTimeout(() => {
-        onClose(customName); // Pass the new name back to the parent
+        onClose(customName);
       }, 500);
     } else {
-      setDeployStep('idle'); // Reset if it fails so the user can try again
+      setDeployStep('idle');
     }
   };
 
@@ -112,8 +124,29 @@ export default function TweakModal({ modelName, onClose }: TweakModalProps) {
           
           {/* LEFT: Controls */}
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
-            <div className="space-y-6 pb-20"> {/* pb-20 ensures bottom tooltips don't get cut off */}
+            <div className="space-y-6 pb-20">
             
+              {/* NEW: Quick Presets Selector */}
+              <div className="relative overflow-visible bg-sky-50 dark:bg-sky-900/20 p-4 rounded-xl border border-sky-200 dark:border-sky-800">
+                <label className="block text-sm font-semibold text-sky-900 dark:text-sky-300 mb-2">
+                  ⚡ Quick Presets <InfoTooltip text="Instantly apply optimized, battle-tested settings for specific tasks like coding, writing, or summarizing." />
+                </label>
+                <select 
+                  className="w-full bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 rounded-lg px-4 py-2.5 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 outline-none cursor-pointer font-medium"
+                  onChange={(e) => {
+                    const preset = PRESETS.find(p => p.id === e.target.value);
+                    if (preset) applyPreset(preset);
+                  }}
+                  defaultValue=""
+                  disabled={deployStep !== 'idle'}
+                >
+                  <option value="" disabled>Choose a preset to auto-fill settings...</option>
+                  {PRESETS.map(preset => (
+                    <option key={preset.id} value={preset.id}>{preset.name} — {preset.description}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Identity */}
               <div className="relative overflow-visible bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
                 <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
@@ -130,7 +163,7 @@ export default function TweakModal({ modelName, onClose }: TweakModalProps) {
                 </label>
                 <textarea value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} disabled={deployStep !== 'idle'} rows={4}
                   className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-4 py-2 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 outline-none resize-none disabled:opacity-50" 
-                  placeholder="e.g., You are an expert coding assistant. Always explain your reasoning before providing code." />
+                  placeholder="e.g., You are an expert coding assistant..." />
               </div>
 
               {/* Generation Settings */}
