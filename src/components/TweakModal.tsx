@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { createModel } from '@/lib/ollama';
 import { getSettings } from '@/lib/settings';
 import { PRESETS, Preset } from '@/lib/presets';
+import { calculateContextSafety } from '@/lib/hardware';
 
 interface TweakModalProps {
   modelName: string;
@@ -24,6 +25,7 @@ const InfoTooltip = ({ text }: { text: string }) => (
 
 export default function TweakModal({ modelName, onClose }: TweakModalProps) {
   const defaultSettings = getSettings();
+  
 
   const [customName, setCustomName] = useState(`${modelName.split(':')[0]}-custom`);
   const [systemPrompt, setSystemPrompt] = useState('');
@@ -39,7 +41,7 @@ export default function TweakModal({ modelName, onClose }: TweakModalProps) {
   const [numCtx, setNumCtx] = useState(defaultSettings.defaultNumCtx);
   const [numPredict, setNumPredict] = useState(-1);
   const [numGpu, setNumGpu] = useState(defaultSettings.defaultNumGpu);
-  
+    const contextSafety = calculateContextSafety(numCtx, defaultSettings.gpuVramGB, defaultSettings.systemRamGB);
   const [activeTab, setActiveTab] = useState<'preview' | 'info'>('preview');
   const [deployStep, setDeployStep] = useState<'idle' | 'analyzing' | 'generating' | 'deploying' | 'done'>('idle');
 
@@ -232,19 +234,53 @@ export default function TweakModal({ modelName, onClose }: TweakModalProps) {
               <div className="relative overflow-visible bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-4">
                 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-200 uppercase tracking-wider">Hardware & Context</h3>
                 
-                <div>
-                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-2">
-                    Context Window (num_ctx) <InfoTooltip text="The maximum amount of text (input + output) the model can remember at once. Higher values (8k, 16k, 32k) allow reading larger files but consume significantly more VRAM." />
-                  </label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {[2048, 4096, 8192, 16384, 32768].map((val) => (
-                      <button key={val} onClick={() => setNumCtx(val)} disabled={deployStep !== 'idle'}
-                        className={`px-3 py-1.5 text-sm rounded-md border transition-colors disabled:opacity-50 ${numCtx === val ? 'bg-sky-500 border-sky-500 text-white' : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300'}`}>
-                        {val >= 1000 ? `${(val/1000).toFixed(0)}k` : val}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+               <div>
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-2">
+                        Context Window (num_ctx) <InfoTooltip text="The maximum amount of text (input + output) the model can remember at once. Higher values (8k, 16k, 32k) allow reading larger files but consume significantly more VRAM." />
+                    </label>
+                    
+                    {/* Quick Select Buttons */}
+                    <div className="flex flex-wrap gap-2 mb-2">
+                        {[2048, 4096, 8192, 16384, 32768].map((val) => (
+                        <button key={val} onClick={() => setNumCtx(val)} disabled={deployStep !== 'idle'}
+                            className={`px-3 py-1.5 text-sm rounded-md border transition-colors disabled:opacity-50 ${numCtx === val ? 'bg-sky-500 border-sky-500 text-white' : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300'}`}>
+                            {val >= 1000 ? `${(val/1000).toFixed(0)}k` : val}
+                        </button>
+                        ))}
+                    </div>
+
+                    {/* Custom Input Field */}
+                    <input
+                        type="number"
+                        step="512"
+                        min="512"
+                        value={numCtx}
+                        onChange={(e) => setNumCtx(parseInt(e.target.value) || 512)}
+                        disabled={deployStep !== 'idle'}
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-4 py-2 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-sky-500 outline-none disabled:opacity-50"
+                        placeholder="Custom context length (e.g., 12000)"
+                    />
+                    
+                    {/* Hardware Warning Block */}
+                    {contextSafety.warningLevel !== 'safe' && (
+                        <div className={`mt-2 p-2 rounded-lg text-xs flex items-start gap-2 ${
+                        contextSafety.warningLevel === 'caution' 
+                            ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300'
+                            : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300'
+                        }`}>
+                        <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        <div>
+                            <span className="font-semibold">{contextSafety.warningLevel === 'caution' ? 'Caution:' : 'Warning:'}</span>
+                            {' '}{contextSafety.message}
+                            {contextSafety.warningLevel === 'danger' && (
+                            <span className="block mt-1">Recommended: {contextSafety.safeContextLimit} or lower</span>
+                            )}
+                        </div>
+                        </div>
+                    )}
+                    </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>

@@ -1,5 +1,8 @@
 export interface AppSettings {
   ollamaUrl: string;
+  gpuVramGB: number;
+  cpuCores: number;
+  systemRamGB: number;
   defaultTemperature: number;
   defaultTopP: number;
   defaultTopK: number;
@@ -11,6 +14,9 @@ export interface AppSettings {
 
 const DEFAULT_SETTINGS: AppSettings = {
   ollamaUrl: 'http://127.0.0.1:11434',
+  gpuVramGB: 6,
+  cpuCores: 4,
+  systemRamGB: 16,
   defaultTemperature: 0.7,
   defaultTopP: 0.9,
   defaultTopK: 40,
@@ -28,7 +34,15 @@ export function getSettings(): AppSettings {
     if (!stored) return DEFAULT_SETTINGS;
     
     const parsed = JSON.parse(stored);
-    return { ...DEFAULT_SETTINGS, ...parsed };
+    
+    // Safely parse gpuVramGB to prevent NaN from breaking the app
+    const safeVram = parseFloat(parsed.gpuVramGB);
+    
+    return { 
+      ...DEFAULT_SETTINGS, 
+      ...parsed,
+      gpuVramGB: isNaN(safeVram) ? DEFAULT_SETTINGS.gpuVramGB : safeVram
+    };
   } catch (error) {
     console.error('Error loading settings:', error);
     return DEFAULT_SETTINGS;
