@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { createModel } from '@/lib/ollama';
+import { getSettings } from '@/lib/settings';
 
 interface TweakModalProps {
   modelName: string;
@@ -13,34 +14,37 @@ const InfoTooltip = ({ text }: { text: string }) => (
     <svg className="w-4 h-4 text-slate-400 group-hover:text-sky-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
-    {/* Note: overflow-visible on the parent prevents this from clipping */}
     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-slate-900 dark:bg-slate-800 text-slate-100 text-xs rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 border border-slate-700 pointer-events-none leading-relaxed">
       {text}
-            <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900 dark:border-t-slate-800"></div>
+      <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900 dark:border-t-slate-800"></div>
     </div>
   </div>
 );
 
 export default function TweakModal({ modelName, onClose }: TweakModalProps) {
+  // 1. Load default settings from localStorage
+  const defaultSettings = getSettings();
+
   const [customName, setCustomName] = useState(`${modelName.split(':')[0]}-custom`);
   const [systemPrompt, setSystemPrompt] = useState('');
   
-  const [temperature, setTemperature] = useState(0.7);
-  const [topP, setTopP] = useState(0.9);
-  const [topK, setTopK] = useState(40);
-  const [minP, setMinP] = useState(0.05);
-  const [repeatPenalty, setRepeatPenalty] = useState(1.15);
+  // 2. Initialize state with user's saved defaults
+  const [temperature, setTemperature] = useState(defaultSettings.defaultTemperature);
+  const [topP, setTopP] = useState(defaultSettings.defaultTopP);
+  const [topK, setTopK] = useState(defaultSettings.defaultTopK);
+  const [minP, setMinP] = useState(defaultSettings.defaultMinP);
+  const [repeatPenalty, setRepeatPenalty] = useState(defaultSettings.defaultRepeatPenalty);
   const [presencePenalty, setPresencePenalty] = useState(0.0);
   const [frequencyPenalty, setFrequencyPenalty] = useState(0.0);
   
-  const [numCtx, setNumCtx] = useState(4096);
+  const [numCtx, setNumCtx] = useState(defaultSettings.defaultNumCtx);
   const [numPredict, setNumPredict] = useState(-1);
-  const [numGpu, setNumGpu] = useState(99);
+  const [numGpu, setNumGpu] = useState(defaultSettings.defaultNumGpu);
   
   const [activeTab, setActiveTab] = useState<'preview' | 'info'>('preview');
   const [deployStep, setDeployStep] = useState<'idle' | 'analyzing' | 'generating' | 'deploying' | 'done'>('idle');
 
-    const generateModelfile = () => {
+  const generateModelfile = () => {
     const baseModel = modelName.trim();
     let mf = `FROM ${baseModel}\n\n`;
     
@@ -70,11 +74,14 @@ export default function TweakModal({ modelName, onClose }: TweakModalProps) {
     
     setDeployStep('generating');
     const modelfileContent = generateModelfile();
-    console.log('📝 [CLIENT] Generated Modelfile:\n', modelfileContent);
     await new Promise(r => setTimeout(r, 800)); // Simulate generation
     
     setDeployStep('deploying');
-    const success = await createModel(customName, modelfileContent);
+    
+    // 3. Get the custom URL from settings and pass it to createModel
+    const settings = getSettings();
+    const success = await createModel(customName, modelfileContent, settings.ollamaUrl);
+    
     await new Promise(r => setTimeout(r, 600)); // Simulate deployment
     
     if (success) {
@@ -89,7 +96,7 @@ export default function TweakModal({ modelName, onClose }: TweakModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => onClose()} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => onClose()} />
       
       <div className="relative w-full max-w-7xl h-[90vh] bg-white dark:bg-slate-900 backdrop-blur-xl border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
         
@@ -184,7 +191,7 @@ export default function TweakModal({ modelName, onClose }: TweakModalProps) {
                       Frequency <InfoTooltip text="Penalizes tokens based on how many times they have already appeared. Higher values make the model more concise." />
                     </label>
                     <input type="number" step="0.1" value={frequencyPenalty} onChange={(e) => setFrequencyPenalty(parseFloat(e.target.value))} disabled={deployStep !== 'idle'} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm disabled:opacity-50" />
-                </div>
+                  </div>
                 </div>
               </div>
 
@@ -249,7 +256,6 @@ export default function TweakModal({ modelName, onClose }: TweakModalProps) {
                   <div className="text-xs font-mono text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
                     <p className="mb-2 text-slate-500 italic">// This is the exact configuration Ollama uses for the base model.</p>
                     <pre>{`# Modelfile generated by "ollama show"\n# To build a new Modelfile based on this, replace FROM with:\n# FROM ${modelName}\n\nFROM ${modelName}\n\n# (Full template, parameters, and license omitted for brevity in this view. Use 'ollama show ${modelName} --modelfile' in your terminal to see the complete raw output.)`}</pre>
-                 .
                   </div>
                 )}
               </div>

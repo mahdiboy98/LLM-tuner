@@ -29,14 +29,15 @@ export async function showModel(name: string): Promise<any> {
   }
 }
 
-export async function createModel(name: string, modelfile: string): Promise<boolean> {
+export async function createModel(name: string, modelfile: string, ollamaUrl?: string): Promise<boolean> {
   try {
     const response = await fetch('/api/create-model', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         name: name.trim(), 
-        modelfile: modelfile.trim() 
+        modelfile: modelfile.trim(),
+        ollamaUrl: ollamaUrl || 'http://127.0.0.1:11434'
       }),
     });
     
@@ -53,6 +54,7 @@ export async function createModel(name: string, modelfile: string): Promise<bool
     return false;
   }
 }
+
 export async function deleteModel(name: string): Promise<boolean> {
   try {
     const response = await fetch(`${OLLAMA_BASE_URL}/api/delete`, {
