@@ -40,17 +40,23 @@ export default function TweakModal({ modelName, onClose }: TweakModalProps) {
   const [activeTab, setActiveTab] = useState<'preview' | 'info'>('preview');
   const [deployStep, setDeployStep] = useState<'idle' | 'analyzing' | 'generating' | 'deploying' | 'done'>('idle');
 
-  const generateModelfile = () => {
-    let mf = `FROM ${modelName}\n\n`;
-    if (systemPrompt.trim()) mf += `SYSTEM """${systemPrompt.trim()}"""\n\n`;
+    const generateModelfile = () => {
+    const baseModel = modelName.trim();
+    let mf = `FROM ${baseModel}\n\n`;
+    
+    if (systemPrompt.trim()) {
+      mf += `SYSTEM """${systemPrompt.trim()}"""\n\n`;
+    }
     
     mf += `PARAMETER temperature ${temperature}\n`;
     mf += `PARAMETER top_p ${topP}\n`;
     mf += `PARAMETER top_k ${topK}\n`;
     mf += `PARAMETER min_p ${minP}\n`;
     mf += `PARAMETER repeat_penalty ${repeatPenalty}\n`;
+    
     if (presencePenalty !== 0) mf += `PARAMETER presence_penalty ${presencePenalty}\n`;
     if (frequencyPenalty !== 0) mf += `PARAMETER frequency_penalty ${frequencyPenalty}\n`;
+    
     mf += `PARAMETER num_ctx ${numCtx}\n`;
     mf += `PARAMETER num_predict ${numPredict}\n`;
     mf += `PARAMETER num_gpu ${numGpu}`;
@@ -64,6 +70,7 @@ export default function TweakModal({ modelName, onClose }: TweakModalProps) {
     
     setDeployStep('generating');
     const modelfileContent = generateModelfile();
+    console.log('📝 [CLIENT] Generated Modelfile:\n', modelfileContent);
     await new Promise(r => setTimeout(r, 800)); // Simulate generation
     
     setDeployStep('deploying');
@@ -75,12 +82,14 @@ export default function TweakModal({ modelName, onClose }: TweakModalProps) {
       setTimeout(() => {
         onClose(customName); // Pass the new name back to the parent
       }, 500);
+    } else {
+      setDeployStep('idle'); // Reset if it fails so the user can try again
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => deployStep === 'idle' && onClose()} />
+     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => onClose()} />
       
       <div className="relative w-full max-w-7xl h-[90vh] bg-white dark:bg-slate-900 backdrop-blur-xl border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
         
@@ -89,7 +98,7 @@ export default function TweakModal({ modelName, onClose }: TweakModalProps) {
             <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Configure Model</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Base: {modelName}</p>
           </div>
-          <button onClick={() => deployStep === 'idle' && onClose()} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-3xl leading-none">&times;</button>
+          <button onClick={() => onClose()} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-3xl leading-none">&times;</button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-8">

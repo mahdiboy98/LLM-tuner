@@ -1,6 +1,6 @@
 // Handles all communication with Ollama's REST API
 
-const OLLAMA_BASE_URL = process.env.NEXT_PUBLIC_OLLAMA_URL || 'http://localhost:11434';
+const OLLAMA_BASE_URL = process.env.NEXT_PUBLIC_OLLAMA_URL || 'http://127.0.0.1:11434';
 
 export async function listModels(): Promise<any[]> {
   try {
@@ -31,27 +31,28 @@ export async function showModel(name: string): Promise<any> {
 
 export async function createModel(name: string, modelfile: string): Promise<boolean> {
   try {
-    const response = await fetch(`${OLLAMA_BASE_URL}/api/create`, {
+    const response = await fetch('/api/create-model', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, modelfile, stream: false }),
+      body: JSON.stringify({ 
+        name: name.trim(), 
+        modelfile: modelfile.trim() 
+      }),
     });
     
+    const data = await response.json();
+    
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Create model error:', errorText);
+      console.error('❌ Create Model Failed:', data.error);
       return false;
     }
     
-    // Consume the response to ensure it completes
-    await response.text();
     return true;
   } catch (error) {
-    console.error('Error creating model:', error);
+    console.error('❌ Network error creating model:', error);
     return false;
   }
 }
-
 export async function deleteModel(name: string): Promise<boolean> {
   try {
     const response = await fetch(`${OLLAMA_BASE_URL}/api/delete`, {
