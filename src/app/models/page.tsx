@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { OllamaModel } from '@/lib/types';
 import TweakModal from '@/components/TweakModal';
 import { listModels, deleteModel } from '@/lib/ollama';
+import ImportModal from '@/components/ImportModal';
 
 export default function ModelsPage() {
   const [models, setModels] = useState<OllamaModel[]>([]);
@@ -11,6 +12,7 @@ export default function ModelsPage() {
   const [tweakingModel, setTweakingModel] = useState<string | null>(null);
   const [newlyCreatedModel, setNewlyCreatedModel] = useState<string | null>(null);
   const [deletingModel, setDeletingModel] = useState<string | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const fetchModels = async () => {
     const modelsData = await listModels();
@@ -62,12 +64,18 @@ export default function ModelsPage() {
 
   return (
     <div className="relative">
-      <header className="mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-50">Local Models</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Manage and optimize your installed LLMs.</p>
-        </div>
-      </header>
+            <header className="mb-8 flex justify-between items-center">
+              <div>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-50">Local Models</h1>
+                <p className="text-slate-500 dark:text-slate-400 mt-1">Manage and optimize your installed LLMs.</p>
+              </div>
+              <button 
+                onClick={() => setShowImportModal(true)}
+                className="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <span>📥</span> Import GGUF
+              </button>
+            </header>
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
         <table className="w-full text-left">
@@ -128,6 +136,16 @@ export default function ModelsPage() {
       {tweakingModel && (
         <TweakModal modelName={tweakingModel} onClose={handleModalClose} />
       )}
+
+      {showImportModal && (
+    <ImportModal 
+      onClose={() => setShowImportModal(false)} 
+      onImportSuccess={() => {
+        setShowImportModal(false);
+        fetchModels(); // Refresh the list
+      }} 
+    />
+  )}
     </div>
   );
 }

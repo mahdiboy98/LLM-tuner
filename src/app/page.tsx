@@ -1,4 +1,5 @@
 import { listModels } from '@/lib/ollama';
+import SystemMonitor from '@/components/SystemMonitor';
 
 export default async function Dashboard() {
   const models = await listModels();
@@ -31,6 +32,10 @@ export default async function Dashboard() {
           </p>
           <p className="text-sm text-slate-500 dark:text-slate-500 mt-1">~1 KB each</p>
         </div>
+      </div>
+
+      <div className="mb-8">
+        <SystemMonitor />
       </div>
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
