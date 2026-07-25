@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getSettings, saveSettings, AppSettings } from '@/lib/settings';
 import { toast } from '@/lib/toast';
+import PageTransition from '@/components/PageTransition';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -32,6 +33,7 @@ export default function SettingsPage() {
   }
 
   return (
+    <PageTransition>
     <div className="max-w-4xl mx-auto">
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-50">Settings</h1>
@@ -263,5 +265,6 @@ export default function SettingsPage() {
         </div>
       </div>
     </div>
+</PageTransition>
   );
 }

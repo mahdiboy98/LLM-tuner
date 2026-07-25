@@ -6,6 +6,9 @@ import { getSettings } from '@/lib/settings';
 import { PRESETS, Preset } from '@/lib/presets';
 import { calculateContextSafety } from '@/lib/hardware';
 import { toast } from '@/lib/toast';
+import { motion } from 'framer-motion';
+
+
 
 interface TweakModalProps {
   modelName: string;
@@ -129,10 +132,19 @@ export default function TweakModal({ modelName, onClose }: TweakModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => onClose()} />
-      
-      <div className="relative w-full max-w-7xl h-[90vh] bg-white dark:bg-slate-900 backdrop-blur-xl border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-        
+            <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2 }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+        onClick={() => onClose()} 
+      />
+            <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', duration: 0.4, bounce: 0.2 }}
+        className="relative w-full max-w-7xl h-[90vh] bg-white dark:bg-slate-900 backdrop-blur-xl border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+      >  
         <div className="flex justify-between items-center p-6 border-b border-slate-200 dark:border-slate-700">
           <div>
             <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Configure Model</h2>
@@ -357,7 +369,7 @@ export default function TweakModal({ modelName, onClose }: TweakModalProps) {
           </div>
 
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

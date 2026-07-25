@@ -13,11 +13,20 @@ export interface OllamaModel {
   };
 }
 
-export interface ModelDetails {
-  template: string;
-  parameters: string;
+export interface ModelShowResponse {
   modelfile: string;
+  parameters: string;
+  template: string;
   license: string;
+  details?: {
+    parent_model?: string;
+    format?: string;
+    family?: string;
+    families?: string[];
+    parameter_size?: string;
+    quantization_level?: string;
+    [key: string]: unknown; // Safely allows extra model_info fields without using 'any'
+  };
 }
 
 export interface TweakParameters {

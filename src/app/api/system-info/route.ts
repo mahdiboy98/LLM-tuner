@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import os from 'os';
 import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 // Cache CPU usage between calls
 let previousCpus = os.cpus();
@@ -24,34 +27,61 @@ function getCpuUsage(): number {
     totalIdle += (curr.idle - prev.idle);
   }
 
-  const usage = ((totalTick - totalIdle) / totalTick) * 100;
+  // Prevent division by zero on the very first call
+  const usage = timeDiff > 0 ? ((totalTick - totalIdle) / totalTick) * 100 : 0;
   
   previousCpus = currentCpus;
   previousTime = currentTime;
   
-  return Math.round(usage);
+  // Clamp between 0 and 100 for UI safety
+  return Math.round(Math.max(0, Math.min(100, usage)));
 }
 
 async function getGpuInfo(): Promise<{ name: string; vramTotal: number; vramUsed: number } | null> {
-  return new Promise((resolve) => {
-    exec('nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv,noheader,nounits', (error, stdout) => {
-      if (error) {
-        resolve(null);
-        return;
+  const platform = os.platform();
+
+  try {
+    if (platform === 'darwin') {
+      // macOS: Check for Apple Silicon or generic GPU info
+      // Note: Apple Silicon uses Unified Memory, so dedicated VRAM isn't a separate pool.
+      const { stdout } = await execAsync('system_profiler SPDisplaysDataType');
+      const lines = stdout.split('\n');
+      let gpuName = 'Apple Silicon / Unknown GPU';
+      
+      for (const line of lines) {
+        const match = line.match(/Chipset Model:\s*(.+)/);
+        if (match) {
+          gpuName = match[1].trim();
+          break;
+        }
       }
       
-      const parts = stdout.trim().split(',').map(s => s.trim());
-      if (parts.length >= 3) {
-        resolve({
-          name: parts[0],
-          vramTotal: parseFloat(parts[1]) || 0,
-          vramUsed: parseFloat(parts[2]) || 0,
-        });
-      } else {
-        resolve(null);
-      }
-    });
-  });
+      // For Apple Silicon, VRAM is shared with system RAM. 
+      // Returning 0 indicates unified memory, so the UI can show "Shared with System" gracefully.
+      return {
+        name: gpuName,
+        vramTotal: 0, 
+        vramUsed: 0,
+      };
+    } 
+    
+    // Windows & Linux: Try nvidia-smi first (most common for local LLMs)
+    const { stdout } = await execAsync('nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv,noheader,nounits');
+    const parts = stdout.trim().split(',').map(s => s.trim());
+    
+    if (parts.length >= 3) {
+      return {
+        name: parts[0],
+        vramTotal: parseFloat(parts[1]) || 0,
+        vramUsed: parseFloat(parts[2]) || 0,
+      };
+    }
+  } catch (error) {
+    // nvidia-smi failed or not found. Returning null is a safe, clean fallback.
+    return null;
+  }
+
+  return null;
 }
 
 export async function GET() {
@@ -64,8 +94,8 @@ export async function GET() {
 
   return NextResponse.json({
     ram: {
-      total: Math.round(totalMem / 1024 / 1024 / 1024 * 10) / 10,
-      used: Math.round(usedMem / 1024 / 1024 / 1024 * 10) / 10,
+      total: Math.round((totalMem / 1024 / 1024 / 1024) * 10) / 10,
+      used: Math.round((usedMem / 1024 / 1024 / 1024) * 10) / 10,
       percent: Math.round((usedMem / totalMem) * 100),
     },
     cpu: {
@@ -77,7 +107,8 @@ export async function GET() {
       name: gpuInfo.name,
       vramTotal: gpuInfo.vramTotal,
       vramUsed: gpuInfo.vramUsed,
-      percent: Math.round((gpuInfo.vramUsed / gpuInfo.vramTotal) * 100),
+      // Prevent division by zero if vramTotal is 0 (e.g., Apple Silicon)
+      percent: gpuInfo.vramTotal > 0 ? Math.round((gpuInfo.vramUsed / gpuInfo.vramTotal) * 100) : 0,
     } : null,
   });
 }

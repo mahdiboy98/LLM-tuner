@@ -1,9 +1,7 @@
 // Handles all communication with Ollama's REST API
 
 import { getSettings } from "./settings";
-import { OllamaModel } from "./types";
-
-const OLLAMA_BASE_URL = process.env.NEXT_PUBLIC_OLLAMA_URL || 'http://127.0.0.1:11434';
+import { OllamaModel, ModelShowResponse } from "./types";
 
 export async function listModels(): Promise<OllamaModel[]> {
   try {
@@ -26,9 +24,11 @@ export async function listModels(): Promise<OllamaModel[]> {
   }
 }
 
-export async function showModel(name: string): Promise<any> {
+export async function showModel(name: string): Promise<ModelShowResponse | null> {
   try {
-    const response = await fetch(`${OLLAMA_BASE_URL}/api/show`, {
+    const settings = getSettings();
+    // FIX: Now uses dynamic settings.ollamaUrl instead of hardcoded env variable
+    const response = await fetch(`${settings.ollamaUrl}/api/show`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
@@ -43,13 +43,16 @@ export async function showModel(name: string): Promise<any> {
 
 export async function createModel(name: string, modelfile: string, ollamaUrl?: string): Promise<boolean> {
   try {
+    const settings = getSettings();
+    const targetUrl = ollamaUrl || settings.ollamaUrl;
+    
     const response = await fetch('/api/create-model', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         name: name.trim(), 
         modelfile: modelfile.trim(),
-        ollamaUrl: ollamaUrl || 'http://127.0.0.1:11434'
+        ollamaUrl: targetUrl
       }),
     });
     
@@ -69,7 +72,9 @@ export async function createModel(name: string, modelfile: string, ollamaUrl?: s
 
 export async function deleteModel(name: string): Promise<boolean> {
   try {
-    const response = await fetch(`${OLLAMA_BASE_URL}/api/delete`, {
+    const settings = getSettings();
+    // FIX: Now uses dynamic settings.ollamaUrl instead of hardcoded env variable
+    const response = await fetch(`${settings.ollamaUrl}/api/delete`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),

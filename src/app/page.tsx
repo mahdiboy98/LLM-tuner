@@ -1,5 +1,7 @@
 import { listModels } from '@/lib/ollama';
 import SystemMonitor from '@/components/SystemMonitor';
+import { AlertTriangle } from 'lucide-react';
+
 
 export default async function Dashboard() {
   let models: any[] = [];
@@ -20,10 +22,10 @@ export default async function Dashboard() {
         <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-50 mb-2">Dashboard</h1>
         <p className="text-slate-600 dark:text-slate-400">Welcome to LLM Tuner. Let's optimize your local AI.</p>
         
-        {/* Friendly Warning Banner if Ollama is down */}
+      {/* Friendly Warning Banner if Ollama is down */}
         {ollamaError && (
           <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl flex items-start gap-3">
-            <span className="text-2xl mt-0.5">⚠️</span>
+            <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
             <div>
               <p className="font-semibold text-amber-900 dark:text-amber-200">Ollama is currently offline</p>
               <p className="text-sm text-amber-800 dark:text-amber-300 mt-1">

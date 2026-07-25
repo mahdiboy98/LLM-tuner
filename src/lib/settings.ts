@@ -13,7 +13,7 @@ export interface AppSettings {
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
-  ollamaUrl: 'http://127.0.0.1:11434',
+    ollamaUrl: process.env.NEXT_PUBLIC_OLLAMA_URL || 'http://127.0.0.1:11434',
   gpuVramGB: 6,
   cpuCores: 4,
   systemRamGB: 16,

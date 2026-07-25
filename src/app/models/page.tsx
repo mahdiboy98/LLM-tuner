@@ -7,7 +7,9 @@ import { listModels, deleteModel } from '@/lib/ollama';
 import ImportModal from '@/components/ImportModal';
 import { toast } from '@/lib/toast';
 import { getSettings } from '@/lib/settings';
-import ErrorBoundary from '@/components/ErrorBoundary';
+import { FilePlus, SlidersHorizontal, Trash2, Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import PageTransition from '@/components/PageTransition';
 
 export default function ModelsPage() {
   const [models, setModels] = useState<OllamaModel[]>([]);
@@ -180,17 +182,18 @@ export default function ModelsPage() {
   );
 
   return (
+    <PageTransition>
     <div className="relative">
             <header className="mb-8 flex justify-between items-center">
               <div>
                 <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-50">Local Models</h1>
                 <p className="text-slate-500 dark:text-slate-400 mt-1">Manage and optimize your installed LLMs.</p>
               </div>
-              <button 
+                            <button 
                 onClick={() => setShowImportModal(true)}
-                className="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                className="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center gap-2 shadow-sm shadow-sky-500/20"
               >
-                <span>📥</span> Import GGUF
+                <FilePlus className="w-4 h-4" /> Import GGUF
               </button>
             </header>
 
@@ -204,13 +207,26 @@ export default function ModelsPage() {
               <th className="px-6 py-4 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                    <motion.tbody 
+            initial="hidden"
+            animate="visible"
+            variants={{
+              visible: { transition: { staggerChildren: 0.05 } }
+            }}
+            className="divide-y divide-slate-200 dark:divide-slate-800"
+          >
             {models.map((model) => {
               const isNew = newlyCreatedModel === model.name;
               const likelyCustom = isLikelyCustom(model.name);
               
               return (
-                <tr key={model.name} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${isNew ? 'bg-sky-50/50 dark:bg-sky-900/10' : ''}`}>
+                                <motion.tr 
+                  variants={{
+                    hidden: { opacity: 0, y: 10 },
+                    visible: { opacity: 1, y: 0 }
+                  }}
+                  className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${isNew ? 'bg-sky-50/50 dark:bg-sky-900/10' : ''}`}
+                >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-slate-900 dark:text-slate-100">{model.name}</span>
@@ -227,26 +243,31 @@ export default function ModelsPage() {
                   <td className="px-6 py-4 text-slate-600 dark:text-slate-400 font-mono text-sm">{formatSize(model.size)}</td>
                   <td className="px-6 py-4 text-slate-500 dark:text-slate-500 text-sm">{model.details?.parameter_size || 'Unknown'}</td>
                   <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                                        <div className="flex items-center justify-end gap-2">
                         <button 
                         onClick={() => setTweakingModel(model.name)}
-                        className="bg-slate-900 dark:bg-slate-700 hover:bg-sky-500 dark:hover:bg-sky-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                        className="bg-slate-900 dark:bg-slate-700 hover:bg-sky-500 dark:hover:bg-sky-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
                         >
-                        Configure
+                        <SlidersHorizontal className="w-4 h-4" /> Configure
                         </button>
                         <button 
                         onClick={() => handleDelete(model.name)}
                         disabled={deletingModel === model.name}
-                        className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                         >
+                        {deletingModel === model.name ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
                         {deletingModel === model.name ? '...' : 'Delete'}
                         </button>
                     </div>
                     </td>
-                </tr>
+                </motion.tr>
               );
             })}
-          </tbody>
+          </motion.tbody>
         </table>
       </div>
 
@@ -264,5 +285,6 @@ export default function ModelsPage() {
     />
   )}
     </div>
+ </PageTransition>
   );
 }
