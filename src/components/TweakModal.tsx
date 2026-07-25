@@ -5,6 +5,7 @@ import { createModel } from '@/lib/ollama';
 import { getSettings } from '@/lib/settings';
 import { PRESETS, Preset } from '@/lib/presets';
 import { calculateContextSafety } from '@/lib/hardware';
+import { toast } from '@/lib/toast';
 
 interface TweakModalProps {
   modelName: string;
@@ -84,7 +85,7 @@ export default function TweakModal({ modelName, onClose }: TweakModalProps) {
     return mf;
   };
 
-  const handleDeploy = async () => {
+    const handleDeploy = async () => {
     setDeployStep('analyzing');
     await new Promise(r => setTimeout(r, 800));
     
@@ -94,17 +95,35 @@ export default function TweakModal({ modelName, onClose }: TweakModalProps) {
     
     setDeployStep('deploying');
     const settings = getSettings();
-    const success = await createModel(customName, modelfileContent, settings.ollamaUrl);
     
+    // Check if Ollama is running first
+    try {
+      const healthCheck = await fetch(`${settings.ollamaUrl}/api/tags`, {
+        signal: AbortSignal.timeout(3000),
+      });
+      if (!healthCheck.ok) {
+        toast.error('Ollama Not Running', 'Please start Ollama and try again.');
+        setDeployStep('idle');
+        return;
+      }
+    } catch {
+      toast.error('Cannot Connect to Ollama', 'Server is not responding.');
+      setDeployStep('idle');
+      return;
+    }
+    
+    const success = await createModel(customName, modelfileContent, settings.ollamaUrl);
     await new Promise(r => setTimeout(r, 600));
     
     if (success) {
       setDeployStep('done');
+      toast.success('Model Created', `"${customName}" is ready to use.`);
       setTimeout(() => {
         onClose(customName);
       }, 500);
     } else {
       setDeployStep('idle');
+      toast.error('Creation Failed', `Could not create "${customName}". Check console for details.`);
     }
   };
 

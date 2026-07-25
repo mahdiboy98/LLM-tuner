@@ -1,16 +1,28 @@
 // Handles all communication with Ollama's REST API
 
+import { getSettings } from "./settings";
+import { OllamaModel } from "./types";
+
 const OLLAMA_BASE_URL = process.env.NEXT_PUBLIC_OLLAMA_URL || 'http://127.0.0.1:11434';
 
-export async function listModels(): Promise<any[]> {
+export async function listModels(): Promise<OllamaModel[]> {
   try {
-    const response = await fetch(`${OLLAMA_BASE_URL}/api/tags`);
-    if (!response.ok) throw new Error('Failed to fetch models');
+    const settings = getSettings();
+    const response = await fetch(`${settings.ollamaUrl}/api/tags`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(3000), // 3 second timeout
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
     const data = await response.json();
     return data.models || [];
   } catch (error) {
-    console.error('Error listing models:', error);
-    return [];
+    console.error('Failed to fetch models from Ollama:', error);
+    // CRITICAL: Re-throw the error so the UI can catch it and show the retry screen
+    throw error; 
   }
 }
 

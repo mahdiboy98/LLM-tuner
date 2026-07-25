@@ -3,6 +3,8 @@ import { Inter } from 'next/font/google';
 import { ThemeProvider } from 'next-themes';
 import '@/styles/globals.css';
 import Sidebar from '@/components/Sidebar';
+import ToastContainer from '@/components/ToastContainer';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -23,8 +25,11 @@ export default function RootLayout({
           <div className="flex h-screen">
             <Sidebar />
             <main className="flex-1 overflow-y-auto p-8">
-              {children}
-            </main>
+              <ErrorBoundary>
+                {children}
+              </ErrorBoundary>
+            </main> 
+            <ToastContainer />
           </div>
         </ThemeProvider>
       </body>

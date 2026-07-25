@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getSettings, saveSettings, AppSettings } from '@/lib/settings';
+import { toast } from '@/lib/toast';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -11,10 +12,11 @@ export default function SettingsPage() {
     setSettings(getSettings());
   }, []);
 
-  const handleSave = () => {
+    const handleSave = () => {
     if (!settings) return;
     saveSettings(settings);
     setSaved(true);
+    toast.success('Settings Saved', 'Your preferences have been updated.');
     setTimeout(() => setSaved(false), 2000);
   };
 

@@ -5,6 +5,9 @@ import { OllamaModel } from '@/lib/types';
 import TweakModal from '@/components/TweakModal';
 import { listModels, deleteModel } from '@/lib/ollama';
 import ImportModal from '@/components/ImportModal';
+import { toast } from '@/lib/toast';
+import { getSettings } from '@/lib/settings';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 export default function ModelsPage() {
   const [models, setModels] = useState<OllamaModel[]>([]);
@@ -13,11 +16,19 @@ export default function ModelsPage() {
   const [newlyCreatedModel, setNewlyCreatedModel] = useState<string | null>(null);
   const [deletingModel, setDeletingModel] = useState<string | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchModels = async () => {
-    const modelsData = await listModels();
-    setModels(modelsData);
-    setLoading(false);
+    try {
+      setError(null);
+      const modelsData = await listModels();
+      setModels(modelsData);
+      setLoading(false);
+    } catch (err) {
+      console.error('Failed to fetch models:', err);
+      setError('Cannot connect to Ollama. Make sure it is running and accessible.');
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -44,23 +55,129 @@ export default function ModelsPage() {
     }
   };
 
-  const handleDelete = async (modelName: string) => {
-  // Native browser confirmation for safety
-  const isConfirmed = window.confirm(`Are you sure you want to delete "${modelName}"?\n\nThis cannot be undone.`);
-  if (!isConfirmed) return;
+    const handleDelete = async (modelName: string) => {
+    const isConfirmed = window.confirm(`Are you sure you want to delete "${modelName}"?\n\nThis cannot be undone.`);
+    if (!isConfirmed) return;
 
-  setDeletingModel(modelName);
-  const success = await deleteModel(modelName);
-  
-  if (success) {
-    fetchModels(); // Refresh the list
-  } else {
-    alert(`Failed to delete ${modelName}. Is Ollama running?`);
+    setDeletingModel(modelName);
+    
+    // Check if Ollama is running first
+    try {
+      const settings = getSettings();
+      const healthCheck = await fetch(`${settings.ollamaUrl}/api/tags`, {
+        signal: AbortSignal.timeout(3000),
+      });
+      if (!healthCheck.ok) {
+        toast.error('Ollama Not Running', 'Please start Ollama and try again.');
+        setDeletingModel(null);
+        return;
+      }
+    } catch {
+      toast.error('Cannot Connect to Ollama', 'Server is not responding.');
+      setDeletingModel(null);
+      return;
+    }
+    
+    const success = await deleteModel(modelName);
+    
+    if (success) {
+      fetchModels();
+      toast.success('Model Deleted', `"${modelName}" has been removed.`);
+    } else {
+      toast.error('Deletion Failed', `Could not delete "${modelName}". It may be in use.`);
+    }
+    setDeletingModel(null);
+  };
+
+    if (loading) {
+    return (
+      <div>
+        <header className="mb-8 flex justify-between items-center">
+          <div>
+            <div className="h-8 w-48 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+            <div className="h-4 w-64 bg-slate-200 dark:bg-slate-700 rounded mt-2 animate-pulse"></div>
+          </div>
+          <div className="h-10 w-32 bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse"></div>
+        </header>
+
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
+          <div className="bg-slate-50 dark:bg-slate-800 px-6 py-4">
+            <div className="h-4 w-full bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+          </div>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="px-6 py-4 border-t border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-4">
+                <div className="h-5 w-48 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+                <div className="h-4 w-20 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+                <div className="h-4 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+                <div className="ml-auto h-8 w-20 bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
-  setDeletingModel(null);
-};
 
-  if (loading) return <div className="p-8 text-slate-500">Loading models...</div>;
+    if (error) {
+    return (
+      <div>
+        <header className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-50">Local Models</h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-1">Manage and optimize your installed LLMs.</p>
+          </div>
+        </header>
+
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-12 text-center">
+          <div className="text-6xl mb-4">🔌</div>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50 mb-2">
+            Cannot Connect to Ollama
+          </h3>
+          <p className="text-slate-600 dark:text-slate-400 mb-6">
+            {error}
+          </p>
+          <button
+            onClick={() => {
+              setLoading(true);
+              fetchModels();
+            }}
+            className="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
+          >
+            Retry Connection
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+    // Custom fallback for when models fail to load
+  const ModelsErrorFallback = () => (
+    <div>
+      <header className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-50">Local Models</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Manage and optimize your installed LLMs.</p>
+        </div>
+      </header>
+
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-12 text-center">
+        <div className="text-6xl mb-4">🔌</div>
+        <h3 className="text-xl font-bold text-slate-900 dark:text-slate-50 mb-2">
+          Cannot Connect to Ollama
+        </h3>
+        <p className="text-slate-600 dark:text-slate-400 mb-6">
+          Make sure Ollama is running and accessible at your configured URL.
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
+        >
+          Retry Connection
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="relative">

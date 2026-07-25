@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { getSettings } from '@/lib/settings';
+import { toast } from '@/lib/toast';
 
 interface ImportModalProps {
   onClose: () => void;
@@ -39,10 +40,27 @@ export default function ImportModal({ onClose, onImportSuccess }: ImportModalPro
     return mf;
   };
 
-  const handleImport = async () => {
+    const handleImport = async () => {
     if (!file || !modelName) return;
     setIsImporting(true);
     setError('');
+
+    // Check if Ollama is running first
+    try {
+      const settings = getSettings();
+      const healthCheck = await fetch(`${settings.ollamaUrl}/api/tags`, {
+        signal: AbortSignal.timeout(3000),
+      });
+      if (!healthCheck.ok) {
+        toast.error('Ollama Not Running', 'Please start Ollama and try again.');
+        setIsImporting(false);
+        return;
+      }
+    } catch {
+      toast.error('Cannot Connect to Ollama', 'Server is not responding.');
+      setIsImporting(false);
+      return;
+    }
 
     const formData = new FormData();
     formData.append('file', file);
@@ -62,9 +80,11 @@ export default function ImportModal({ onClose, onImportSuccess }: ImportModalPro
         throw new Error(data.error || 'Import failed');
       }
 
+      toast.success('Model Imported', `"${modelName}" is ready to use.`);
       onImportSuccess();
     } catch (err: any) {
       setError(err.message);
+      toast.error('Import Failed', err.message);
       setIsImporting(false);
     }
   };

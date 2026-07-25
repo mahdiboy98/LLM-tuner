@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import ThemeToggle from './ThemeToggle';
+import ConnectionStatus from './ConnectionStatus';
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -44,6 +45,7 @@ export default function Sidebar() {
 
       <div className="p-4 border-t border-slate-200 dark:border-slate-700 space-y-2">
         <ThemeToggle />
+        <ConnectionStatus />
         <p className="text-xs text-slate-400 dark:text-slate-500 text-center mt-2">v0.1.0 Alpha</p>
       </div>
     </aside>
